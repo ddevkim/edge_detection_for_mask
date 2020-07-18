@@ -7,12 +7,24 @@ var _edge_detection = require("./edge_detection.js");
 
 var _image_utils2 = require("./image_utils");
 
-const mask_url1 = "./images/mask_images/circle.png";
-const mask_url2 = "./images/mask_images/square.png";
-const mask_url3 = "./images/mask_images/rounded_square.png";
-const mask_url4 = "./images/mask_images/heart_cushion.png";
-const mask_url5 = "./images/mask_images/heart_mask.png";
-const mask_url6 = "./images/mask_images/long_cushion.png";
+/*
+* 코드 변경 적용을 하려면
+* npm ci 로 모듈 패키지 설치 후,
+*
+* browserify app.js -p esmify > bundle.js
+* 터미널 창에 실행한 후 html 리로딩 하면 됨.
+* */
+const mask_url1 = "./images/mask_images/rounded_square.png";
+const mask_url2 = "./images/mask_images/rounded_square2.png";
+const mask_url3 = "./images/mask_images/square.png";
+const mask_url4 = "./images/mask_images/circle.png";
+const mask_url5 = "./images/mask_images/heart_cushion.png";
+const mask_url6 = "./images/mask_images/heart_mask.png";
+const mask_url7 = "./images/mask_images/long_cushion.png";
+
+(() => {// showCanvasToScreen(alpha_grid_canvas, "alpha_grid", "alpha_grid");
+})(); //
+
 
 (async () => {
   const mask_canvas1 = await (0, _image_utils2.convertURLtoCanvas)(mask_url1);
@@ -21,12 +33,14 @@ const mask_url6 = "./images/mask_images/long_cushion.png";
   const mask_canvas4 = await (0, _image_utils2.convertURLtoCanvas)(mask_url4);
   const mask_canvas5 = await (0, _image_utils2.convertURLtoCanvas)(mask_url5);
   const mask_canvas6 = await (0, _image_utils2.convertURLtoCanvas)(mask_url6);
-  const edge_canvas1 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url1), 0.5, 3);
-  const edge_canvas2 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url2), 0.5, 3);
-  const edge_canvas3 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url3), 0.5, 3);
-  const edge_canvas4 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url4), 0.5, 3);
-  const edge_canvas5 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url5), 0.5, 3);
-  const edge_canvas6 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url6), 0.5, 3);
+  const mask_canvas7 = await (0, _image_utils2.convertURLtoCanvas)(mask_url7);
+  const edge_canvas1 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url1), 0.7, 2, true, 33, 5);
+  const edge_canvas2 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url2), 0.7, 2, true, 33, 5);
+  const edge_canvas3 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url3), 0.7, 2, true, 33, 5);
+  const edge_canvas4 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url4), 0.7, 2, true, 33, 5);
+  const edge_canvas5 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url5), 0.7, 2, true, 33, 5);
+  const edge_canvas6 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url6), 0.7, 2, true, 33, 5);
+  const edge_canvas7 = (0, _edge_detection.detectEdgeMask)(await (0, _image_utils.convertURLtoImgObj)(mask_url7), 0.7, 2, true, 33, 5);
   (0, _image_utils.showCanvasToScreen)(mask_canvas1, "mask1", "mask");
   (0, _image_utils.showCanvasToScreen)(edge_canvas1, "edge1", "edge");
   (0, _image_utils.showCanvasToScreen)(mask_canvas2, "mask2", "mask");
@@ -39,6 +53,8 @@ const mask_url6 = "./images/mask_images/long_cushion.png";
   (0, _image_utils.showCanvasToScreen)(edge_canvas5, "edge5", "edge");
   (0, _image_utils.showCanvasToScreen)(mask_canvas6, "mask6", "mask");
   (0, _image_utils.showCanvasToScreen)(edge_canvas6, "edge6", "edge");
+  (0, _image_utils.showCanvasToScreen)(mask_canvas7, "mask7", "mask");
+  (0, _image_utils.showCanvasToScreen)(edge_canvas7, "edge7", "edge");
 })();
 
 },{"./edge_detection.js":2,"./image_utils":4,"./image_utils.js":4}],2:[function(require,module,exports){
@@ -51,7 +67,7 @@ exports.detectEdgeMask = detectEdgeMask;
 
 var _image_utils = require("./image_utils");
 
-function detectEdgeMask(mask_image, line_color_black_amount, blur_strength) {
+function detectEdgeMask(mask_image, line_color_black_amount, blur_strength, is_dashed = false, number_of_dashed_lines = 0, dashed_line_cut_width = 0) {
   console.time('edge_detection: ');
   const {
     width,
@@ -64,8 +80,19 @@ function detectEdgeMask(mask_image, line_color_black_amount, blur_strength) {
 
   const convertPixelPointToArrIndex = (x, y, width) => (x + y * width) * 4;
 
+  const square_length = Math.max(width, height);
+  const margin_length = (square_length - dashed_line_cut_width * number_of_dashed_lines) / (number_of_dashed_lines + 1);
+
   for (let src_y = 0; src_y < height; src_y++) {
+    const r_y = is_dashed && src_y % (margin_length + dashed_line_cut_width);
+
     for (let src_x = 0; src_x < width; src_x++) {
+      const r_x = is_dashed && src_x % (margin_length + dashed_line_cut_width);
+
+      if (is_dashed && (r_x >= margin_length && r_x < margin_length + dashed_line_cut_width || r_y >= margin_length && r_y < margin_length + dashed_line_cut_width)) {
+        continue;
+      }
+
       const src_x1 = src_x;
       const src_x0 = src_x - 1 < 0 ? 0 : src_x - 1;
       const src_x2 = src_x + 1 > width - 1 ? width - 1 : src_x + 1;
